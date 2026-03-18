@@ -13,8 +13,8 @@ CONTEXT_ID = 2
 AVAN_FEE_PERCENT = 0.003
 AVAN_FEE_FIXED = 0.5
 
-_inventory_cache: Optional[List[str]] = None
-_inventory_cache_time: float = 0
+_inventory_cache: dict = {}
+_inventory_cache_time: dict = {}
 CACHE_TTL = 300  # 5 минут
 
 
@@ -22,11 +22,11 @@ def normalize_name(name: str) -> str:
     return re.sub(r"\s+", " ", name).strip().lower()
 
 
-def load_inventory_names() -> List[dict]:
+def load_inventory_names(steam_id: str) -> List[dict]:
     global _inventory_cache, _inventory_cache_time
-    if _inventory_cache is not None and time.time() - _inventory_cache_time < CACHE_TTL:
-        return _inventory_cache
-    url = f"https://steamcommunity.com/inventory/{STEAM_ID}/{APP_ID}/{CONTEXT_ID}"
+    if steam_id in _inventory_cache and time.time() - _inventory_cache_time.get(steam_id, 0) < CACHE_TTL:
+        return _inventory_cache[steam_id]
+    url = f"https://steamcommunity.com/inventory/{steam_id}/{APP_ID}/{CONTEXT_ID}"
     resp = requests.get(url, timeout=15)
     resp.raise_for_status()
     data = resp.json()
@@ -46,8 +46,8 @@ def load_inventory_names() -> List[dict]:
         instanceid = a.get("instanceid", "0")
         info = desc_map.get((classid, instanceid)) or desc_map.get((classid, "0")) or {"name": "UNKNOWN_ITEM", "icon": ""}
         items.append(info)
-    _inventory_cache = items
-    _inventory_cache_time = time.time()
+    _inventory_cache[steam_id] = items
+    _inventory_cache_time[steam_id] = time.time()
     return items
 
 
@@ -80,8 +80,8 @@ def load_avan_prices(text: str) -> Dict[str, float]:
     return avan_prices
 
 
-def run_analysis(inv_html: str, avan_text: str, min_percent: float) -> dict:
-    inv_items = load_inventory_names()
+def run_analysis(inv_html: str, avan_text: str, min_percent: float, steam_id: str) -> dict:
+    inv_items = load_inventory_names(steam_id)
     steam_prices = load_steam_prices_from_html(inv_html)
     n = min(len(inv_items), len(steam_prices))
     inv_items = inv_items[:n]
@@ -203,8 +203,9 @@ def analyze_route():
     inv_html = data.get("inv_html", "")
     avan_text = data.get("avan_text", "")
     min_percent = float(data.get("min_percent") or 0)
+    steam_id = data.get("steam_id", STEAM_ID)
     try:
-        result = run_analysis(inv_html, avan_text, min_percent)
+        result = run_analysis(inv_html, avan_text, min_percent, steam_id)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

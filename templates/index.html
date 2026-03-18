@@ -69,6 +69,10 @@
             </div>
             <div class="col-md-2 d-flex flex-column gap-3">
                 <div>
+                    <label class="form-label text-secondary small fw-semibold">STEAM ID</label>
+                    <input type="text" id="steamId" class="form-control" value="76561199482415281">
+                </div>
+                <div>
                     <label class="form-label text-secondary small fw-semibold">MIN. RATE (%)</label>
                     <input type="number" id="minPercent" class="form-control" value="65" min="0" max="100">
                 </div>
@@ -286,9 +290,14 @@ async function analyze() {
     const invHtml = document.getElementById('invHtml').value.trim();
     const avanText = document.getElementById('avanText').value.trim();
     const minPercent = parseFloat(document.getElementById('minPercent').value) || 0;
+    const steamId = document.getElementById('steamId').value.trim();
 
     if (!invHtml || !avanText) {
         alert('Please fill in both data fields');
+        return;
+    }
+    if (!steamId) {
+        alert('Please enter your Steam ID');
         return;
     }
 
@@ -300,7 +309,7 @@ async function analyze() {
         const resp = await fetch('/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inv_html: invHtml, avan_text: avanText, min_percent: minPercent })
+            body: JSON.stringify({ inv_html: invHtml, avan_text: avanText, min_percent: minPercent, steam_id: steamId })
         });
         const data = await resp.json();
         if (data.error) { alert('Error: ' + data.error); return; }
